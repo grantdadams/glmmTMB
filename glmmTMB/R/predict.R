@@ -69,6 +69,7 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE)
 ##' for non-zero-inflated models)}
 ##' \item{"zlink"}{predicted zero-inflation probability on the scale of
 ##' the logit link function}
+##' \item{"like"}{the probability of the observed given the parameters}
 ##' }
 ##' @param na.action how to handle missing values in \code{newdata} (see \code{\link{na.action}});
 ##' the default (\code{na.pass}) is to predict \code{NA}
@@ -99,7 +100,7 @@ predict.glmmTMB <- function(object,newdata=NULL,
                             se.fit=FALSE,
                             re.form, allow.new.levels=FALSE,
                             type = c("link", "response",
-                                     "conditional","zprob","zlink"),
+                                     "conditional","zprob","zlink", "like"),
                             zitype = NULL,
                             na.action = na.pass,
                             debug=FALSE,
@@ -131,7 +132,7 @@ predict.glmmTMB <- function(object,newdata=NULL,
   pv <- attr(terms(object),"predvars")
   attr(tt,"predvars") <- fix_predvars(pv,tt)
   mf$formula <- RHSForm(tt, as.form=TRUE)
-    
+
   if (is.null(newdata)) {
     mf$data <- mc$data ## restore original data
     newFr <- object$frame
@@ -145,7 +146,7 @@ predict.glmmTMB <- function(object,newdata=NULL,
 
   respCol <- match(respNm <- names(omi$respCol),names(newFr))
   ## create *or* overwrite response column for prediction data with NA
-  newFr[[respNm]] <- NA
+  # newFr[[respNm]] <- NA
 
   ## FIXME: not yet handling population-level predictions (re.form
   ##  or new levels/allow.new.levels)
@@ -161,13 +162,14 @@ predict.glmmTMB <- function(object,newdata=NULL,
   yobs <- augFr[[names(omi$respCol)]]
 
   ## match type arg with internal name
-  ## FIXME: warn if "link"  
+  ## FIXME: warn if "link"
   ziPredNm <- switch(type,
                      response   = "corrected",
                      link       =,
                      conditional= "uncorrected",
                      zlink      = ,
                      zprob      = "prob",
+                     like       = "like",
                      stop("unknown type ",type))
   ziPredCode <- .valid_zipredictcode[ziPredNm]
 
@@ -237,7 +239,7 @@ predict.glmmTMB <- function(object,newdata=NULL,
          }
          pred <- ff$linkfun(pred)
          if (se.fit) se <- se/ff$mu.eta(pred) ## do this after transforming pred!
-     } ## if not identity link  
+     } ## if not identity link
   } ## if link or zlink
   if (!se.fit) return(pred) else return(list(fit=pred,se.fit=se))
 }
