@@ -832,7 +832,7 @@ Type objective_function<Type>::operator() ()
       }
       tmp_loglik *= weights(i);
       // Add up
-      nll_vector(i) = keep(i) * tmp_loglik;  // Vector of nll
+      nll_vector(i) -= keep(i) * tmp_loglik;  // Vector of nll
       jnll -= keep(i) * tmp_loglik;
     }
   }

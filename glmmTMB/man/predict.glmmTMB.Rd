@@ -4,9 +4,9 @@
 \alias{predict.glmmTMB}
 \title{prediction}
 \usage{
-\method{predict}{glmmTMB}(object, newdata = NULL, se.fit = FALSE,
-  re.form, allow.new.levels = FALSE, type = c("link", "response",
-  "conditional", "zprob", "zlink"), zitype = NULL, na.action = na.pass,
+\method{predict}{glmmTMB}(object, newdata = NULL, se.fit = FALSE, re.form,
+  allow.new.levels = FALSE, type = c("link", "response", "conditional",
+  "zprob", "zlink", "like"), zitype = NULL, na.action = na.pass,
   debug = FALSE, ...)
 }
 \arguments{
@@ -34,6 +34,7 @@ and \code{mu} otherwise}
 for non-zero-inflated models)}
 \item{"zlink"}{predicted zero-inflation probability on the scale of
 the logit link function}
+\item{"like"}{the probability of the observed given the parameters}
 }}
 
 \item{zitype}{deprecated: formerly used to specify type of zero-inflation probability. Now synonymous with \code{type}}

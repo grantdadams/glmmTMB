@@ -3,51 +3,51 @@
 ## predictions using the new data (data.tmb1):
 assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE)
 {
-    ## Check terms. Only 'blockReps' and 'blockSize' are allowed to
-    ## change.  Note that we allow e.g. spatial covariance matrices to
-    ## change, while e.g. an unstrucured covariance must remain the
-    ## same.
-    checkTerms <- function(t1, t0) {
-        ## Defensive check:
-        stopifnot(identical(names(t1), names(t0)))
-        ## *Never* allowed to differ:
-        testIdentical <- function(checkNm) {
-            unlist( Map( function(x,y)
-                identical(x[checkNm], y[checkNm]), t0, t1) )
-        }
-        ok <- testIdentical( c("blockNumTheta", "blockCode") )
-        if ( ! all(ok) ) {
-            msg <- c("Prediction is not possible for terms: ",
-                     paste(names(t1)[!ok], collapse=", "), "\n",
-                     "Probably some factor levels in 'newdata' require fitting a new model.")
-            stop(msg)
-        }
-        ## Sometimes allowed to differ:
-        if ( ! allow.new.levels ) {
-            ok <- testIdentical( c( "blockReps", "blockSize") )
-            if ( ! all(ok) ) {
-                msg <- c("Predicting new random effect levels for terms: ",
-                         paste(names(t1)[!ok], collapse=", "), "\n",
-                         "Disable this warning with 'allow.new.levels=TRUE'")
-                ## FIXME: warning or error ?
-                warning(msg)
-            }
-        }
+  ## Check terms. Only 'blockReps' and 'blockSize' are allowed to
+  ## change.  Note that we allow e.g. spatial covariance matrices to
+  ## change, while e.g. an unstrucured covariance must remain the
+  ## same.
+  checkTerms <- function(t1, t0) {
+    ## Defensive check:
+    stopifnot(identical(names(t1), names(t0)))
+    ## *Never* allowed to differ:
+    testIdentical <- function(checkNm) {
+      unlist( Map( function(x,y)
+        identical(x[checkNm], y[checkNm]), t0, t1) )
     }
-    checkTerms( data.tmb1$terms,   data.tmb0$terms )
-    checkTerms( data.tmb1$termszi, data.tmb0$termszi )
-    ## Fixed effect parameters must be identical
-    checkModelMatrix <- function(X1, X0) {
-        if( !identical(colnames(X1), colnames(X0)) ) {
-            msg <- c("Prediction is not possible for unknown fixed effects: ",
-                     paste( setdiff(colnames(X1), colnames(X0)), collapse=", "), "\n",
-                     "Probably some factor levels in 'newdata' require fitting a new model.")
-            stop(msg)
-        }
+    ok <- testIdentical( c("blockNumTheta", "blockCode") )
+    if ( ! all(ok) ) {
+      msg <- c("Prediction is not possible for terms: ",
+               paste(names(t1)[!ok], collapse=", "), "\n",
+               "Probably some factor levels in 'newdata' require fitting a new model.")
+      stop(msg)
     }
-    checkModelMatrix(data.tmb1$X,   data.tmb0$X)
-    checkModelMatrix(data.tmb1$Xzi, data.tmb0$Xzi)
-    NULL
+    ## Sometimes allowed to differ:
+    if ( ! allow.new.levels ) {
+      ok <- testIdentical( c( "blockReps", "blockSize") )
+      if ( ! all(ok) ) {
+        msg <- c("Predicting new random effect levels for terms: ",
+                 paste(names(t1)[!ok], collapse=", "), "\n",
+                 "Disable this warning with 'allow.new.levels=TRUE'")
+        ## FIXME: warning or error ?
+        warning(msg)
+      }
+    }
+  }
+  checkTerms( data.tmb1$terms,   data.tmb0$terms )
+  checkTerms( data.tmb1$termszi, data.tmb0$termszi )
+  ## Fixed effect parameters must be identical
+  checkModelMatrix <- function(X1, X0) {
+    if( !identical(colnames(X1), colnames(X0)) ) {
+      msg <- c("Prediction is not possible for unknown fixed effects: ",
+               paste( setdiff(colnames(X1), colnames(X0)), collapse=", "), "\n",
+               "Probably some factor levels in 'newdata' require fitting a new model.")
+      stop(msg)
+    }
+  }
+  checkModelMatrix(data.tmb1$X,   data.tmb0$X)
+  checkModelMatrix(data.tmb1$Xzi, data.tmb0$Xzi)
+  NULL
 }
 
 ##' prediction
@@ -109,8 +109,8 @@ predict.glmmTMB <- function(object,newdata=NULL,
   ## FIXME: add re.form
 
   if (!is.null(zitype)) {
-     warning("zitype is deprecated: please use type instead")
-     type <- zitype
+    warning("zitype is deprecated: please use type instead")
+    type <- zitype
   }
   type <- match.arg(type)
   if (!missing(re.form)) stop("re.form not yet implemented")
@@ -145,8 +145,22 @@ predict.glmmTMB <- function(object,newdata=NULL,
   omi <- object$modelInfo  ## shorthand ("**o**bject$**m**odel**I**nfo")
 
   respCol <- match(respNm <- names(omi$respCol),names(newFr))
-  ## create *or* overwrite response column for prediction data with NA
-  # newFr[[respNm]] <- NA
+  ## create response column for prediction data with yobs if newdata not included
+  if(is.null(newdata)){
+    newFr[[respNm]] <- newFr[[names(omi$respCol)]]
+  }
+  ## create response column for prediction data with yobs if newdata is included
+  if(!is.null(newdata)){
+    if(is.null(mf$data[[names(omi$respCol)]])){
+      if(type == "like"){
+        stop("type == 'like' and no response is included in newdata")
+      }
+      newFr[[respNm]] <- NA
+    }
+    if(!is.null(mf$data[[names(omi$respCol)]])){
+      newFr[[respNm]] <- mf$data[[names(omi$respCol)]] # newFr[[respNm]] <- NA
+    }
+  }
 
   ## FIXME: not yet handling population-level predictions (re.form
   ##  or new levels/allow.new.levels)
@@ -175,23 +189,23 @@ predict.glmmTMB <- function(object,newdata=NULL,
 
   ## need eval.parent() because we will do eval(mf) down below ...
   TMBStruc <-
-        ## FIXME: make first arg of mkTMBStruc into a formula list
-        ## with() interfering with eval.parent() ?
-        eval.parent(mkTMBStruc(RHSForm(omi$allForm$formula,as.form=TRUE),
-                               omi$allForm$ziformula,
-                               omi$allForm$dispformula,
-                               omi$allForm$combForm,
-                               mf,
-                               fr=augFr,
-                               yobs=yobs,
-                               respCol=respCol,
-                               weights=model.weights(augFr),
-                               contrasts=omi$contrasts,
-                               family=omi$family,
-                               ziPredictCode=ziPredNm,
-                               doPredict=as.integer(se.fit),
-                               whichPredict=w,
-                               REML=omi$REML))
+    ## FIXME: make first arg of mkTMBStruc into a formula list
+    ## with() interfering with eval.parent() ?
+    eval.parent(mkTMBStruc(RHSForm(omi$allForm$formula,as.form=TRUE),
+                           omi$allForm$ziformula,
+                           omi$allForm$dispformula,
+                           omi$allForm$combForm,
+                           mf,
+                           fr=augFr,
+                           yobs=yobs,
+                           respCol=respCol,
+                           weights=model.weights(augFr),
+                           contrasts=omi$contrasts,
+                           family=omi$family,
+                           ziPredictCode=ziPredNm,
+                           doPredict=as.integer(se.fit),
+                           whichPredict=w,
+                           REML=omi$REML))
 
   ## short-circuit
   if(debug) return(TMBStruc)
@@ -216,30 +230,30 @@ predict.glmmTMB <- function(object,newdata=NULL,
   na.act <- attr(model.frame(object),"na.action")
   do.napred <- missing(newdata) && !is.null(na.act)
   if (!se.fit) {
-      pred <- newObj$report(lp)$mu_predict
+    pred <- newObj$report(lp)$mu_predict
   } else {
-      H <- with(object,optimHess(oldPar,obj$fn,obj$gr))
-      ## FIXME: Eventually add 'getReportCovariance=FALSE' to this sdreport
-      ##        call to fix memory issue (requires recent TMB version)
-      ## Fixed! (but do we want a flag to get it ? ...)
-      sdr <- sdreport(newObj,oldPar,hessian.fixed=H,getReportCovariance=FALSE)
-      sdrsum <- summary(sdr, "report") ## TMB:::summary.sdreport(sdr, "report")
-      pred <- sdrsum[,"Estimate"]
-      se <- sdrsum[,"Std. Error"]
+    H <- with(object,optimHess(oldPar,obj$fn,obj$gr))
+    ## FIXME: Eventually add 'getReportCovariance=FALSE' to this sdreport
+    ##        call to fix memory issue (requires recent TMB version)
+    ## Fixed! (but do we want a flag to get it ? ...)
+    sdr <- sdreport(newObj,oldPar,hessian.fixed=H,getReportCovariance=FALSE)
+    sdrsum <- summary(sdr, "report") ## TMB:::summary.sdreport(sdr, "report")
+    pred <- sdrsum[,"Estimate"]
+    se <- sdrsum[,"Std. Error"]
   }
   if (do.napred) {
-      pred <- napredict(na.act,pred)
-      if (se.fit) se <- napredict(na.act,se)
+    pred <- napredict(na.act,pred)
+    if (se.fit) se <- napredict(na.act,se)
   }
   if (type %in% c("zlink","link")) {
-     ff <- object$modelInfo$family
-     if (!(type=="link" && ff$link=="identity")) {
-         if (type=="zlink") {
-             ff <- make.link("logit")
-         }
-         pred <- ff$linkfun(pred)
-         if (se.fit) se <- se/ff$mu.eta(pred) ## do this after transforming pred!
-     } ## if not identity link
+    ff <- object$modelInfo$family
+    if (!(type=="link" && ff$link=="identity")) {
+      if (type=="zlink") {
+        ff <- make.link("logit")
+      }
+      pred <- ff$linkfun(pred)
+      if (se.fit) se <- se/ff$mu.eta(pred) ## do this after transforming pred!
+    } ## if not identity link
   } ## if link or zlink
   if (!se.fit) return(pred) else return(list(fit=pred,se.fit=se))
 }
