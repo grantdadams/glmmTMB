@@ -1,5 +1,5 @@
-devtools::install_github("grantdadams/glmmTMB/glmmTMB")
-install.packages("pscl")
+# devtools::install_github("grantdadams/glmmTMB/glmmTMB")
+# install.packages("pscl")
 # Updated by Grant Adams: adamsgd@uw.edu
 
 library(pscl)
@@ -7,7 +7,7 @@ library(glmmTMB)
 
 # Fit using glmmTMB update
 data("bioChemists", package = "pscl")
-zinb <- glmmTMB(art ~ fem + mar + kid5 + phd + ment, ziformula = ~ ., data =
+zinb <- glmmTMB(art ~ (1|fem) + mar + kid5 + phd + ment, ziformula = ~ ., data =
                   bioChemists, family = nbinom2(link = "log"))
 pred <- predict(zinb, type="like") # Get likelihood of each obs
 str(pred)
@@ -61,15 +61,30 @@ midpoints<-barplot(preds3[extreme_biochemist,],
 abline(v=midpoints[19+1],col="red",lwd=3)
 abline(v=midpoints[round(expected)+1],col="yellow",lwd=3)
 
+# Simulate approach
+nsim <- 20000
+simdat <- simulate(zinb, nsim = nsim)
+
+
+
 # Here is the graph I am trying to make with the glmmTMB model
 obs_freq <- table(bioChemists$art)
 cnt =  as.numeric(names(obs_freq))
-freq_fit = matrix(NA, nrow=19, ncol=2)
+freq_fit = matrix(NA, nrow=19, ncol=5)
+expected <- predict(fm_zinb2, type = "response")
 for (c in cnt) {
   print(c);
   freq_fit[c+1,] = round(c(sum(bioChemists$art == c),
-                           sum(predict(fm_zinb2, type = "prob")[,c+1])))
+                           sum(preds3[,c+1]),
+                           sum(round(expected) == c),
+                           sum(simdat == c)/nsim,
+                           sum(preds2[,c+1])
+                           ))
 }
+colnames(freq_fit) <- c("Observed", "Expected glmmTMB", "Fitted", "Simulated", "Expected pscl")
+freq_fit
+
+
 
 dev.off()
 par(lend = 1)
@@ -77,4 +92,8 @@ cnt <- 0:18
 plot(cnt, freq_fit[, 1], type = 'h', col = 'grey70', lwd = 13, xlab = 'Count', ylab = 'Frequency', xlim = c(0, 20), frame.plot = FALSE)
 lines(cnt, freq_fit[, 2], col = "red", lty = 1)
 points(cnt, freq_fit[, 2], col = "red", pch = 8, cex=1)
+
+lines(cnt, freq_fit[, 3], col = 3, lty = 1)
+points(cnt, freq_fit[, 3], col = 3, pch = 8, cex=1)
+
 legend(10, 200, c('ZINB'), col="red", pch = 8, lty = 1, cex=.9, bty='n')
